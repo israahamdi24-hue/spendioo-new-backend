@@ -31,17 +31,6 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/statistics", statisticsRoutes);
-app.use(errorHandler);
-
-const PORT = Number(process.env.PORT) || 5000;
-
-// 🔧 Test connexion DB au démarrage
-console.log(`\n🔍 [STARTUP] Configuration de la base de données:`);
-console.log(`  - Host: ${process.env.MYSQL_HOST || process.env.DB_HOST || "localhost"}`);
-console.log(`  - User: ${process.env.MYSQL_USER || process.env.DB_USER || "root"}`);
-console.log(`  - Database: ${process.env.MYSQL_DB || process.env.DB_NAME || "spendio"}`);
-console.log(`  - Port: ${process.env.MYSQL_PORT || process.env.DB_PORT || 3306}`);
-console.log(`  - Mode: ${process.env.NODE_ENV || "development"}\n`);
 
 // ✅ Endpoint de test pour vérifier l'API
 app.get("/api/test", (req, res) => {
@@ -77,6 +66,18 @@ app.get("/api/health/db", async (req, res) => {
     });
   }
 });
+
+app.use(errorHandler);
+
+const PORT = Number(process.env.PORT) || 5000;
+
+// 🔧 Test connexion DB au démarrage
+console.log(`\n🔍 [STARTUP] Configuration de la base de données:`);
+console.log(`  - Host: ${process.env.MYSQL_HOST || process.env.DB_HOST || "localhost"}`);
+console.log(`  - User: ${process.env.MYSQL_USER || process.env.DB_USER || "root"}`);
+console.log(`  - Database: ${process.env.MYSQL_DB || process.env.DB_NAME || "spendio"}`);
+console.log(`  - Port: ${process.env.MYSQL_PORT || process.env.DB_PORT || 3306}`);
+console.log(`  - Mode: ${process.env.NODE_ENV || "development"}\n`);
 
 // Test connexion DB au démarrage
 db.getConnection()

@@ -114,12 +114,12 @@ async function ensureTestData() {
     console.log(`🧪 [TEST DATA] Vérification des données de test...`);
 
     // Vérifier si l'utilisateur de test existe
-    const [users] = await conn.query(
+    const [users] = await conn.query<any[]>(
       "SELECT * FROM users WHERE email = ?",
       ["test@example.com"]
     );
 
-    if (users && users.length > 0) {
+    if (users && Array.isArray(users) && users.length > 0) {
       console.log(`   ✅ Utilisateur de test existe déjà`);
       return;
     }
@@ -135,12 +135,12 @@ async function ensureTestData() {
     console.log(`   ✅ Utilisateur de test créé: test@example.com (password: 123456)`);
 
     // Récupérer l'ID du nouvel utilisateur
-    const [newUsers] = await conn.query(
+    const [newUsers] = await conn.query<any[]>(
       "SELECT id FROM users WHERE email = ?",
       ["test@example.com"]
     );
 
-    if (newUsers && newUsers.length > 0) {
+    if (newUsers && Array.isArray(newUsers) && newUsers.length > 0) {
       const userId = (newUsers[0] as any).id;
 
       // Créer des catégories de test
