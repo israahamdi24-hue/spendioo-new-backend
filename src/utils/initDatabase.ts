@@ -10,18 +10,27 @@ export async function initializeDatabase() {
   try {
     console.log(`\n🔧 [DATABASE INIT] Vérification de la base de données...`);
 
-    // 1. Vérifier si la DB existe, sinon créer les tables
-    await createTablesIfNotExist();
+    // Utiliser une connexion simple pour tester
+    const conn = await db.getConnection();
+    console.log(`✅ [DB] Connexion MySQL réussie!`);
+    
+    try {
+      // 1. Vérifier si la DB existe, sinon créer les tables
+      await createTablesIfNotExist(conn);
 
-    // 2. Vérifier les données de test
-    await ensureTestData();
+      // 2. Vérifier les données de test
+      await ensureTestData(conn);
 
-    console.log(`✅ [DATABASE INIT] Base de données initialisée avec succès!\n`);
-    return true;
+      console.log(`✅ [DATABASE INIT] Base de données initialisée avec succès!\n`);
+      return true;
+    } finally {
+      conn.release();
+    }
   } catch (error: any) {
     console.error(`\n❌ [DATABASE INIT] Erreur lors de l'initialisation:`);
     console.error(`   Message: ${error.message}`);
     console.error(`   Code: ${error.code}`);
+    console.warn(`⚠️  [DATABASE INIT] Continuant malgré tout (les tables seront créées à la première requête)\n`);
     return false;
   }
 }
@@ -29,9 +38,7 @@ export async function initializeDatabase() {
 /**
  * Créer les tables si elles n'existent pas
  */
-async function createTablesIfNotExist() {
-  const conn = await db.getConnection();
-
+async function createTablesIfNotExist(conn: any) {
   try {
     console.log(`📋 [DATABASE] Création des tables...`);
 
@@ -99,25 +106,24 @@ async function createTablesIfNotExist() {
     console.log(`   ✅ Table budgets`);
 
     console.log(`✅ [DATABASE] Tables créées avec succès`);
-  } finally {
-    conn.release();
+  } catch (error: any) {
+    console.error(`❌ Erreur création tables:`, error.message);
+    throw error;
   }
 }
 
 /**
  * S'assurer qu'il existe au moins un utilisateur de test
  */
-async function ensureTestData() {
-  const conn = await db.getConnection();
-
+async function ensureTestData(conn: any) {
   try {
     console.log(`🧪 [TEST DATA] Vérification des données de test...`);
 
     // Vérifier si l'utilisateur de test existe
-    const [users] = await conn.query<any[]>(
+    const [users] = await conn.query(
       "SELECT * FROM users WHERE email = ?",
       ["test@example.com"]
-    );
+    ) as any;
 
     if (users && Array.isArray(users) && users.length > 0) {
       console.log(`   ✅ Utilisateur de test existe déjà`);
@@ -135,10 +141,10 @@ async function ensureTestData() {
     console.log(`   ✅ Utilisateur de test créé: test@example.com (password: 123456)`);
 
     // Récupérer l'ID du nouvel utilisateur
-    const [newUsers] = await conn.query<any[]>(
+    const [newUsers] = await conn.query(
       "SELECT id FROM users WHERE email = ?",
       ["test@example.com"]
-    );
+    ) as any;
 
     if (newUsers && Array.isArray(newUsers) && newUsers.length > 0) {
       const userId = (newUsers[0] as any).id;
@@ -161,7 +167,8 @@ async function ensureTestData() {
 
       console.log(`   ✅ Catégories de test créées (${categories.length})`);
     }
-  } finally {
-    conn.release();
+  } catch (error: any) {
+    console.error(`❌ Erreur données test:`, error.message);
+    throw error;
   }
 }

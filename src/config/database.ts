@@ -11,8 +11,10 @@ const dbConfig = {
   database: process.env.MYSQL_DB || process.env.DB_NAME || "spendio",
   port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 2, // 🔴 Clever Cloud a une limite de 5 connections, on en prend 2 max
   queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelayMs: 0,
 };
 
 console.log(`\n🔗 [DATABASE CONFIG]`);
