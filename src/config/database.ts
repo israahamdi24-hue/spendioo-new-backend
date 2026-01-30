@@ -10,9 +10,18 @@ const dbConfig = {
   password: process.env.MYSQL_PASSWORD || process.env.DB_PASSWORD || "",
   database: process.env.MYSQL_DB || process.env.DB_NAME || "spendio",
   port: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 };
 
-console.log(`🔗 Tentative de connexion à: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+console.log(`\n🔗 [DATABASE CONFIG]`);
+console.log(`   Host: ${dbConfig.host}`);
+console.log(`   Port: ${dbConfig.port}`);
+console.log(`   User: ${dbConfig.user}`);
+console.log(`   Database: ${dbConfig.database}`);
+console.log(`   Password: ${dbConfig.password ? "***" + dbConfig.password.substring(dbConfig.password.length - 3) : "[EMPTY]"}`);
+console.log(`   Tentative de connexion...\n`);
 
 const db = mysql.createPool(dbConfig as any);
 

@@ -9,6 +9,7 @@ import categoryRoutes from "./routes/categoryRoutes";
 import transactionRoutes from "./routes/transactionRoutes";
 import statisticsRoutes from "./routes/statisticsRoutes";
 import { errorHandler } from "./middleware/errorHandler";
+import { Request, Response } from "express";
 
 dotenv.config();
 
@@ -68,6 +69,32 @@ app.get("/api/health/db", async (req, res) => {
 });
 
 app.use(errorHandler);
+
+// ✅ Middleware pour capturer les erreurs non traitées
+app.use((err: any, req: Request, res: Response, next: any) => {
+  console.error(`\n💥 [UNHANDLED ERROR] ${new Date().toISOString()}`);
+  console.error(`  Route: ${req.method} ${req.path}`);
+  console.error(`  IP: ${req.ip}`);
+  console.error(`  Message: ${err.message}`);
+  console.error(`  Code: ${err.code}`);
+  console.error(`  Errno: ${err.errno}`);
+  console.error(`  SQL: ${err.sql || "N/A"}`);
+  console.error(`  Full Error:`, err);
+  console.error(`  Stack:\n${err.stack}\n`);
+  
+  res.status(500).json({
+    message: "❌ Erreur interne du serveur",
+    error: err.message,
+    code: err.code,
+    timestamp: new Date().toISOString(),
+    debug: process.env.NODE_ENV === "development" ? {
+      message: err.message,
+      code: err.code,
+      errno: err.errno,
+      sql: err.sql,
+    } : undefined
+  });
+});
 
 const PORT = Number(process.env.PORT) || 5000;
 
