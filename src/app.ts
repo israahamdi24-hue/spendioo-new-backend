@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import db from "./config/database";
+import { initializeDatabase } from "./utils/initDatabase";
 import authRoutes from "./routes/authRoutes";
 import budgetRoutes from "./routes/budgetRoutes";
 import categoryRoutes from "./routes/categoryRoutes";
@@ -34,12 +35,62 @@ app.use(errorHandler);
 
 const PORT = Number(process.env.PORT) || 5000;
 
+// 🔧 Test connexion DB au démarrage
+console.log(`\n🔍 [STARTUP] Configuration de la base de données:`);
+console.log(`  - Host: ${process.env.MYSQL_HOST || process.env.DB_HOST || "localhost"}`);
+console.log(`  - User: ${process.env.MYSQL_USER || process.env.DB_USER || "root"}`);
+console.log(`  - Database: ${process.env.MYSQL_DB || process.env.DB_NAME || "spendio"}`);
+console.log(`  - Port: ${process.env.MYSQL_PORT || process.env.DB_PORT || 3306}`);
+console.log(`  - Mode: ${process.env.NODE_ENV || "development"}\n`);
+
+// ✅ Endpoint de test pour vérifier l'API
+app.get("/api/test", (req, res) => {
+  res.json({
+    message: "✅ API Spendio fonctionne!",
+    timestamp: new Date().toISOString(),
+    environment: {
+      nodeEnv: process.env.NODE_ENV || "development",
+      dbHost: process.env.MYSQL_HOST || process.env.DB_HOST || "localhost",
+    },
+  });
+});
+
+// ✅ Endpoint pour tester la connexion DB
+app.get("/api/health/db", async (req, res) => {
+  try {
+    console.log(`🔍 [HEALTH] Test connexion DB...`);
+    const conn = await db.getConnection();
+    await conn.query("SELECT 1");
+    conn.release();
+    console.log(`✅ [HEALTH] Connexion DB réussie`);
+    res.json({
+      status: "✅ Connexion OK",
+      database: process.env.MYSQL_DB || process.env.DB_NAME || "spendio",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error(`❌ [HEALTH] Erreur DB:`, error);
+    res.status(500).json({
+      status: "❌ Erreur connexion",
+      error: error.message,
+      code: error.code,
+    });
+  }
+});
+
+// Test connexion DB au démarrage
 db.getConnection()
   .then((conn) => {
     conn.release();
-    console.log("✅ Connexion MySQL réussie");
+    console.log(`✅ [DB] Connexion MySQL réussie!`);
   })
-  .catch((err) => console.error("❌ Erreur MySQL :", err));
+  .catch((err) => {
+    console.error(`❌ [DB] Erreur de connexion MySQL:`);
+    console.error(`  Message: ${err.message}`);
+    console.error(`  Code: ${err.code}`);
+    console.error(`  Errno: ${err.errno}`);
+    console.warn(`⚠️  [DB] Le serveur va continuer, mais les routes vont échouer`);
+  });
 
 const os = require('os');
 
@@ -56,8 +107,13 @@ function getLocalIP() {
 }
 
 const localIP = getLocalIP();
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Serveur lancé sur http://0.0.0.0:${PORT}`);
-  console.log(`📱 Accessible à: http://${localIP}:${PORT}`);
+
+// 🚀 Lancer le serveur et initialiser la base de données
+app.listen(PORT, "0.0.0.0", async () => {
+  console.log(`\n🚀 Serveur lancé sur http://0.0.0.0:${PORT}`);
+  console.log(`📱 Accessible à: http://${localIP}:${PORT}\n`);
+  
+  // Initialiser la base de données
+  await initializeDatabase();
 });
 

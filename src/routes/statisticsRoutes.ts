@@ -5,16 +5,17 @@ import { getMonthlyStats, getDailyStats, getHistoryStats } from "../controllers/
 
 const router = Router();
 
+// ✅ FIXED: Removed userId from URL, use req.user.id instead
 // Statistiques principales du mois
-// GET /api/statistics/month/:userId/:month
-router.get("/month/:userId/:month", verifyToken, getMonthlyStats);
+// GET /api/statistics/month/:month
+router.get("/month/:month", verifyToken, getMonthlyStats);
 
 // Évolution journalière
-// GET /api/statistics/daily/:userId/:month
-router.get("/daily/:userId/:month", verifyToken, getDailyStats);
+// GET /api/statistics/daily/:month
+router.get("/daily/:month", verifyToken, getDailyStats);
 
 // Historique sur 6 mois
-// GET /api/statistics/history/:userId
-router.get("/history/:userId", verifyToken, getHistoryStats);
+// GET /api/statistics/history
+router.get("/history", verifyToken, getHistoryStats);
 
 export default router;

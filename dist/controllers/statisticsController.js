@@ -7,7 +7,11 @@ exports.getHistoryStats = exports.getDailyStats = exports.getMonthlyStats = void
 const database_1 = __importDefault(require("../config/database"));
 // 🔹 1. Récupérer les statistiques mensuelles
 const getMonthlyStats = async (req, res) => {
-    const { userId, month } = req.params;
+    const { month } = req.params;
+    const userId = req.user?.id; // ✅ FIXED: Get from token, not URL
+    if (!userId) {
+        return res.status(401).json({ message: "Non autorisé" });
+    }
     try {
         console.log(`📊 Fetching monthly stats for user ${userId}, month ${month}`);
         // --- Budget du mois ---
@@ -66,7 +70,11 @@ const getMonthlyStats = async (req, res) => {
 exports.getMonthlyStats = getMonthlyStats;
 // 🔹 2. Évolution journalière (LineChart)
 const getDailyStats = async (req, res) => {
-    const { userId, month } = req.params;
+    const { month } = req.params;
+    const userId = req.user?.id; // ✅ FIXED: Get from token, not URL
+    if (!userId) {
+        return res.status(401).json({ message: "Non autorisé" });
+    }
     try {
         console.log(`📈 Fetching daily stats for user ${userId}, month ${month}`);
         const [rows] = await database_1.default.query(`SELECT 
@@ -95,7 +103,10 @@ const getDailyStats = async (req, res) => {
 exports.getDailyStats = getDailyStats;
 // 🔹 3. Historique sur 6 mois (BarChart)
 const getHistoryStats = async (req, res) => {
-    const { userId } = req.params;
+    const userId = req.user?.id; // ✅ FIXED: Get from token, not URL
+    if (!userId) {
+        return res.status(401).json({ message: "Non autorisé" });
+    }
     try {
         console.log(`📊 Fetching history stats for user ${userId} (last 6 months)`);
         const [rows] = await database_1.default.query(`SELECT 

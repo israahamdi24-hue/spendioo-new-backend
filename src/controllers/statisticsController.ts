@@ -5,7 +5,12 @@ import { RowDataPacket } from "mysql2";
 
 // 🔹 1. Récupérer les statistiques mensuelles
 export const getMonthlyStats = async (req: Request, res: Response) => {
-  const { userId, month } = req.params;
+  const { month } = req.params;
+  const userId = (req as any).user?.id; // ✅ FIXED: Get from token, not URL
+
+  if (!userId) {
+    return res.status(401).json({ message: "Non autorisé" });
+  }
 
   try {
     console.log(`📊 Fetching monthly stats for user ${userId}, month ${month}`);
@@ -83,7 +88,12 @@ export const getMonthlyStats = async (req: Request, res: Response) => {
 
 // 🔹 2. Évolution journalière (LineChart)
 export const getDailyStats = async (req: Request, res: Response) => {
-  const { userId, month } = req.params;
+  const { month } = req.params;
+  const userId = (req as any).user?.id; // ✅ FIXED: Get from token, not URL
+
+  if (!userId) {
+    return res.status(401).json({ message: "Non autorisé" });
+  }
 
   try {
     console.log(`📈 Fetching daily stats for user ${userId}, month ${month}`);
@@ -119,7 +129,11 @@ export const getDailyStats = async (req: Request, res: Response) => {
 
 // 🔹 3. Historique sur 6 mois (BarChart)
 export const getHistoryStats = async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = (req as any).user?.id; // ✅ FIXED: Get from token, not URL
+
+  if (!userId) {
+    return res.status(401).json({ message: "Non autorisé" });
+  }
 
   try {
     console.log(`📊 Fetching history stats for user ${userId} (last 6 months)`);
