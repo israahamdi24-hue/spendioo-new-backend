@@ -43,42 +43,70 @@ exports.getBudgets = getBudgets;
 // Ajouter ou mettre à jour un budget
 const saveBudget = async (req, res) => {
     try {
+        console.log(`\n💰 [BUDGET POST] ===== DÉBUT =====`);
+        console.log(`   Timestamp: ${new Date().toISOString()}`);
+        console.log(`   Body reçu: ${JSON.stringify(req.body)}`);
         const userId = req.user?.id;
-        if (!userId)
+        console.log(`   User ID: ${userId || "❌ Non trouvé"}`);
+        if (!userId) {
+            console.warn(`⚠️  [BUDGET POST] Utilisateur non authentifié`);
             return res.status(401).json({ message: "Non autorisé" });
+        }
         const { month, amount, category_id } = req.body;
-        console.log(`💰 [BUDGET] Sauvegarde budget:`, { userId, month, amount, category_id });
+        console.log(`   Paramètres extraits:`, { month, amount, category_id });
         if (!month || !amount) {
+            console.warn(`⚠️  [BUDGET POST] Champs manquants`);
             return res.status(400).json({ message: "month et amount requis" });
         }
         if (!category_id) {
+            console.warn(`⚠️  [BUDGET POST] category_id manquant`);
             return res.status(400).json({ message: "category_id est requis" });
         }
         // Extraire year et month du format "YYYY-MM"
-        const [year, monthNum] = month.split("-");
-        const yearNum = parseInt(year);
-        const monthNumInt = parseInt(monthNum);
+        console.log(`   Tentative de parse du format "${month}"...`);
+        const monthParts = month.split("-");
+        console.log(`   Parts après split: ${JSON.stringify(monthParts)}`);
+        const yearNum = parseInt(monthParts[0]);
+        const monthNumInt = parseInt(monthParts[1]);
+        console.log(`   Year: ${yearNum}, Month: ${monthNumInt}`);
         if (isNaN(yearNum) || isNaN(monthNumInt)) {
+            console.warn(`❌ [BUDGET POST] Format invalide - yearNum=${yearNum}, monthNumInt=${monthNumInt}`);
             return res.status(400).json({ message: "Format de mois invalide (utilisez YYYY-MM)" });
         }
         console.log(`🔍 Vérification budget existant...`);
         const [rows] = await database_1.default.query("SELECT * FROM budgets WHERE user_id = ? AND category_id = ? AND month = ? AND year = ?", [userId, category_id, monthNumInt, yearNum]);
+        console.log(`   Budgets existants trouvés: ${rows.length}`);
         if (rows.length > 0) {
-            console.log(`✏️  Mise à jour du budget existant`);
-            await database_1.default.query("UPDATE budgets SET limit_amount = ? WHERE user_id = ? AND category_id = ? AND month = ? AND year = ?", [amount, userId, category_id, monthNumInt, yearNum]);
+            console.log(`✏️  Mise à jour du budget existant...`);
+            const updateResult = await database_1.default.query("UPDATE budgets SET limit_amount = ? WHERE user_id = ? AND category_id = ? AND month = ? AND year = ?", [amount, userId, category_id, monthNumInt, yearNum]);
+            console.log(`✅ Budget mis à jour`);
             res.json({ message: "Budget mis à jour" });
         }
         else {
-            console.log(`➕ Création nouveau budget`);
-            await database_1.default.query("INSERT INTO budgets (user_id, category_id, limit_amount, month, year) VALUES (?, ?, ?, ?, ?)", [userId, category_id, amount, monthNumInt, yearNum]);
+            console.log(`➕ Création nouveau budget...`);
+            console.log(`   Query: INSERT INTO budgets (user_id, category_id, limit_amount, month, year) VALUES (?, ?, ?, ?, ?)`);
+            console.log(`   Values: [${userId}, ${category_id}, ${amount}, ${monthNumInt}, ${yearNum}]`);
+            const insertResult = await database_1.default.query("INSERT INTO budgets (user_id, category_id, limit_amount, month, year) VALUES (?, ?, ?, ?, ?)", [userId, category_id, amount, monthNumInt, yearNum]);
+            console.log(`✅ Budget créé`, insertResult);
             res.json({ message: "Budget ajouté" });
         }
+        console.log(`💰 [BUDGET POST] ===== FIN (SUCCÈS) =====\n`);
     }
     catch (error) {
-        console.error("❌ Erreur saveBudget:", error.message);
-        console.error("   Code:", error.code);
-        console.error("   SQL:", error.sql);
-        res.status(500).json({ message: "Erreur serveur", error: error.message });
+        console.error(`\n❌ [BUDGET POST] ===== ERREUR =====`);
+        console.error(`   Type: ${error.constructor.name}`);
+        console.error(`   Message: ${error.message}`);
+        console.error(`   Code: ${error.code}`);
+        console.error(`   Errno: ${error.errno}`);
+        console.error(`   SQL: ${error.sql}`);
+        console.error(`   Stack:\n${error.stack}`);
+        console.error(`❌ [BUDGET POST] ===== FIN (ERREUR) =====\n`);
+        res.status(500).json({
+            message: "Erreur serveur",
+            error: error.message,
+            code: error.code,
+            sql: error.sql
+        });
     }
 };
 exports.saveBudget = saveBudget;

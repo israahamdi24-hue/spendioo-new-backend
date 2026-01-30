@@ -8,35 +8,54 @@ export const getMonthlyStats = async (req: Request, res: Response) => {
   const { month } = req.params;
   const userId = (req as any).user?.id; // ✅ FIXED: Get from token, not URL
 
+  console.log(`\n📊 [STATS MONTH] ===== DÉBUT =====`);
+  console.log(`   Timestamp: ${new Date().toISOString()}`);
+  console.log(`   URL Params: { month: "${month}" }`);
+  console.log(`   User: ${userId}`);
+  console.log(`   Token: ${(req as any).user ? "✅ Present" : "❌ Missing"}`);
+
   if (!userId) {
+    console.log(`   ❌ REJECTION: User ID not found in token`);
+    console.log(`📊 [STATS MONTH] ===== FIN (ERROR) =====\n`);
     return res.status(401).json({ message: "Non autorisé" });
   }
 
   try {
-    console.log(`📊 Fetching monthly stats for user ${userId}, month ${month}`);
+    console.log(`   🔍 Starting data fetch...`);
 
     // --- Budget du mois ---
+    console.log(`   📝 Query 1: SELECT amount FROM budgets WHERE user_id = ? AND month = ?`);
+    console.log(`      Params: [${userId}, "${month}"]`);
     const [budgetRows] = await db.query<RowDataPacket[]>(
       "SELECT amount FROM budgets WHERE user_id = ? AND month = ?",
       [userId, month]
     );
     const budget = budgetRows[0]?.amount || 0;
+    console.log(`   ✅ Budget result: ${budget}`);
 
     // --- Dépenses du mois ---
+    console.log(`   📝 Query 2: SUM expenses...`);
+    console.log(`      Params: [${userId}, "expense", "${month}"]`);
     const [expenseRows] = await db.query<RowDataPacket[]>(
       "SELECT IFNULL(SUM(amount), 0) AS total FROM transactions WHERE user_id = ? AND type = 'expense' AND DATE_FORMAT(date, '%Y-%m') = ?",
       [userId, month]
     );
     const expenses = expenseRows[0]?.total || 0;
+    console.log(`   ✅ Expenses result: ${expenses}`);
 
     // --- Revenus du mois ---
+    console.log(`   📝 Query 3: SUM revenues...`);
+    console.log(`      Params: [${userId}, "income", "${month}"]`);
     const [incomeRows] = await db.query<RowDataPacket[]>(
       "SELECT IFNULL(SUM(amount), 0) AS total FROM transactions WHERE user_id = ? AND type = 'income' AND DATE_FORMAT(date, '%Y-%m') = ?",
       [userId, month]
     );
     const revenues = incomeRows[0]?.total || 0;
+    console.log(`   ✅ Revenues result: ${revenues}`);
 
     // --- Répartition par catégorie ---
+    console.log(`   📝 Query 4: Categories with expenses...`);
+    console.log(`      Params: [${userId}, "${month}", ${userId}]`);
     const [categoryRows] = await db.query<RowDataPacket[]>(
       `SELECT 
          c.id, 
@@ -56,14 +75,17 @@ export const getMonthlyStats = async (req: Request, res: Response) => {
        ORDER BY total DESC`,
       [userId, month, userId]
     );
+    console.log(`   ✅ Categories result: ${categoryRows.length} categories`);
 
     // --- Calculs globaux ---
     const remaining = budget - expenses;
     const percentage = budget > 0 ? (expenses / budget) * 100 : 0;
 
-    console.log(`✅ Monthly stats retrieved: Budget=${budget}, Expenses=${expenses}, Revenues=${revenues}`);
+    console.log(`   ✨ Calculations:`);
+    console.log(`      Remaining: ${remaining}`);
+    console.log(`      Percentage: ${percentage.toFixed(2)}%`);
 
-    res.json({
+    const responseData = {
       month,
       budget: Number(budget),
       expenses: Number(expenses),
@@ -79,10 +101,27 @@ export const getMonthlyStats = async (req: Request, res: Response) => {
         count: Number(c.count),
         total: Number(c.total),
       })),
+    };
+
+    console.log(`   📤 Response payload prepared: ${JSON.stringify(responseData, null, 2)}`);
+    console.log(`✅ [STATS MONTH] ===== FIN (SUCCESS) =====\n`);
+
+    res.json(responseData);
+  } catch (error: any) {
+    console.error(`\n❌ [STATS MONTH ERROR]`);
+    console.error(`   Type: ${error.constructor.name}`);
+    console.error(`   Message: ${error.message}`);
+    console.error(`   Code: ${error.code}`);
+    console.error(`   Errno: ${error.errno}`);
+    console.error(`   SQL: ${error.sql}`);
+    console.error(`   Stack: ${error.stack}`);
+    console.error(`📊 [STATS MONTH] ===== FIN (ERROR) =====\n`);
+    
+    res.status(500).json({ 
+      message: "Erreur lors de la récupération des statistiques mensuelles",
+      error: error.message,
+      code: error.code
     });
-  } catch (error) {
-    console.error("❌ Erreur getMonthlyStats:", error);
-    res.status(500).json({ message: "Erreur lors de la récupération des statistiques mensuelles" });
   }
 };
 
