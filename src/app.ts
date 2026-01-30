@@ -17,6 +17,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 🚨 Capture les erreurs non gérées
+process.on("uncaughtException", (error: any) => {
+  console.error(`\n💥 [UNCAUGHT EXCEPTION]`);
+  console.error(`   Message: ${error.message}`);
+  console.error(`   Stack:`, error.stack);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
+  console.error(`\n💥 [UNHANDLED REJECTION]`);
+  console.error(`   Reason:`, reason);
+  console.error(`   Promise:`, promise);
+  process.exit(1);
+});
+
 // Debug middleware
 app.use((req, res, next) => {
   console.log(`📨 ${req.method} ${req.path} from ${req.ip}`);
@@ -142,6 +157,12 @@ app.listen(PORT, "0.0.0.0", async () => {
   console.log(`📱 Accessible à: http://${localIP}:${PORT}\n`);
   
   // Initialiser la base de données
-  await initializeDatabase();
+  try {
+    await initializeDatabase();
+  } catch (error: any) {
+    console.error(`\n❌ ERREUR FATALE lors de l'initialisation:`);
+    console.error(error);
+    process.exit(1);
+  }
 });
 
