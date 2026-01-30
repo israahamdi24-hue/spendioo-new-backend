@@ -7,7 +7,8 @@ exports.getHistoryStats = exports.getDailyStats = exports.getMonthlyStats = void
 const database_1 = __importDefault(require("../config/database"));
 // 🔹 1. Récupérer les statistiques mensuelles
 const getMonthlyStats = async (req, res) => {
-    const { month } = req.params;
+    const monthParam = req.params.month;
+    const month = Array.isArray(monthParam) ? monthParam[0] : monthParam;
     const userId = req.user?.id; // ✅ FIXED: Get from token, not URL
     console.log(`\n📊 [STATS MONTH] ===== DÉBUT =====`);
     console.log(`   Timestamp: ${new Date().toISOString()}`);

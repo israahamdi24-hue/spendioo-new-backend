@@ -5,7 +5,8 @@ import { RowDataPacket } from "mysql2";
 
 // 🔹 1. Récupérer les statistiques mensuelles
 export const getMonthlyStats = async (req: Request, res: Response) => {
-  const { month } = req.params;
+  const monthParam = req.params.month as string | string[];
+  const month = Array.isArray(monthParam) ? monthParam[0] : monthParam;
   const userId = (req as any).user?.id; // ✅ FIXED: Get from token, not URL
 
   console.log(`\n📊 [STATS MONTH] ===== DÉBUT =====`);
