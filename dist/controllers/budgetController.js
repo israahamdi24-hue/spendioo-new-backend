@@ -9,12 +9,17 @@ const database_1 = __importDefault(require("../config/database"));
 const getBudgets = async (req, res) => {
     try {
         const userId = req.user?.id;
-        if (!userId)
+        console.log(`📊 [BUDGETS] Requête GET /budgets`);
+        console.log(`   User ID: ${userId || "❌ Non trouvé"}`);
+        if (!userId) {
+            console.warn(`⚠️  [BUDGETS] Utilisateur non authentifié`);
             return res.status(401).json({ message: "Non autorisé" });
+        }
+        console.log(`🔍 [BUDGETS] Recherche des budgets pour l'utilisateur ${userId}...`);
         const [rows] = await database_1.default.query(`SELECT 
         b.id,
         b.month,
-        b.amount AS budget_limit,
+        b.limit_amount AS budget_limit,
         IFNULL(SUM(t.amount), 0) AS spent
        FROM budgets b
        LEFT JOIN transactions t ON t.user_id = b.user_id 
@@ -23,11 +28,15 @@ const getBudgets = async (req, res) => {
        WHERE b.user_id = ?
        GROUP BY b.id, b.month
        ORDER BY b.month DESC`, [userId]);
+        console.log(`✅ [BUDGETS] ${rows.length} budget(s) trouvé(s)`);
         res.json(rows);
     }
     catch (error) {
-        console.error("Erreur getBudgets :", error);
-        res.status(500).json({ message: "Erreur serveur" });
+        console.error(`❌ [BUDGETS] Erreur:`);
+        console.error(`   Message: ${error.message}`);
+        console.error(`   Code: ${error.code}`);
+        console.error(`   Stack: ${error.stack}`);
+        res.status(500).json({ message: "Erreur serveur", error: error.message });
     }
 };
 exports.getBudgets = getBudgets;
