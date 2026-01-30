@@ -13,8 +13,6 @@ const dbConfig = {
   waitForConnections: true,
   connectionLimit: 2, // 🔴 Clever Cloud a une limite de 5 connections, on en prend 2 max
   queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelayMs: 0,
 };
 
 console.log(`\n🔗 [DATABASE CONFIG]`);
