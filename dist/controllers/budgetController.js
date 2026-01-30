@@ -46,31 +46,39 @@ const saveBudget = async (req, res) => {
         const userId = req.user?.id;
         if (!userId)
             return res.status(401).json({ message: "Non autorisé" });
-        const { month, amount } = req.body;
+        const { month, amount, category_id } = req.body;
+        console.log(`💰 [BUDGET] Sauvegarde budget:`, { userId, month, amount, category_id });
         if (!month || !amount) {
             return res.status(400).json({ message: "month et amount requis" });
         }
-        const [rows] = await database_1.default.query("SELECT * FROM budgets WHERE user_id = ? AND month = ?", [userId, month]);
+        if (!category_id) {
+            return res.status(400).json({ message: "category_id est requis" });
+        }
+        // Extraire year et month du format "YYYY-MM"
+        const [year, monthNum] = month.split("-");
+        const yearNum = parseInt(year);
+        const monthNumInt = parseInt(monthNum);
+        if (isNaN(yearNum) || isNaN(monthNumInt)) {
+            return res.status(400).json({ message: "Format de mois invalide (utilisez YYYY-MM)" });
+        }
+        console.log(`🔍 Vérification budget existant...`);
+        const [rows] = await database_1.default.query("SELECT * FROM budgets WHERE user_id = ? AND category_id = ? AND month = ? AND year = ?", [userId, category_id, monthNumInt, yearNum]);
         if (rows.length > 0) {
-            await database_1.default.query("UPDATE budgets SET amount = ? WHERE user_id = ? AND month = ?", [
-                amount,
-                userId,
-                month,
-            ]);
+            console.log(`✏️  Mise à jour du budget existant`);
+            await database_1.default.query("UPDATE budgets SET limit_amount = ? WHERE user_id = ? AND category_id = ? AND month = ? AND year = ?", [amount, userId, category_id, monthNumInt, yearNum]);
             res.json({ message: "Budget mis à jour" });
         }
         else {
-            await database_1.default.query("INSERT INTO budgets (user_id, month, amount) VALUES (?, ?, ?)", [
-                userId,
-                month,
-                amount,
-            ]);
+            console.log(`➕ Création nouveau budget`);
+            await database_1.default.query("INSERT INTO budgets (user_id, category_id, limit_amount, month, year) VALUES (?, ?, ?, ?, ?)", [userId, category_id, amount, monthNumInt, yearNum]);
             res.json({ message: "Budget ajouté" });
         }
     }
     catch (error) {
-        console.error("Erreur saveBudget :", error);
-        res.status(500).json({ message: "Erreur serveur" });
+        console.error("❌ Erreur saveBudget:", error.message);
+        console.error("   Code:", error.code);
+        console.error("   SQL:", error.sql);
+        res.status(500).json({ message: "Erreur serveur", error: error.message });
     }
 };
 exports.saveBudget = saveBudget;
