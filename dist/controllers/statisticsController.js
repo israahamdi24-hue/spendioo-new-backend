@@ -21,11 +21,16 @@ const getMonthlyStats = async (req, res) => {
     }
     try {
         console.log(`   🔍 Starting data fetch...`);
+        // Parse month format "2026-01" into year and month
+        const monthParts = month.split("-");
+        const yearNum = parseInt(monthParts[0]);
+        const monthNumInt = parseInt(monthParts[1]);
+        console.log(`   📅 Parsed month: year=${yearNum}, month=${monthNumInt}`);
         // --- Budget du mois ---
-        console.log(`   📝 Query 1: SELECT amount FROM budgets WHERE user_id = ? AND month = ?`);
-        console.log(`      Params: [${userId}, "${month}"]`);
-        const [budgetRows] = await database_1.default.query("SELECT amount FROM budgets WHERE user_id = ? AND month = ?", [userId, month]);
-        const budget = budgetRows[0]?.amount || 0;
+        console.log(`   📝 Query 1: SELECT limit_amount FROM budgets WHERE user_id = ? AND year = ? AND month = ?`);
+        console.log(`      Params: [${userId}, ${yearNum}, ${monthNumInt}]`);
+        const [budgetRows] = await database_1.default.query("SELECT limit_amount FROM budgets WHERE user_id = ? AND year = ? AND month = ?", [userId, yearNum, monthNumInt]);
+        const budget = budgetRows[0]?.limit_amount || 0;
         console.log(`   ✅ Budget result: ${budget}`);
         // --- Dépenses du mois ---
         console.log(`   📝 Query 2: SUM expenses...`);
@@ -107,11 +112,15 @@ exports.getMonthlyStats = getMonthlyStats;
 const getDailyStats = async (req, res) => {
     const { month } = req.params;
     const userId = req.user?.id; // ✅ FIXED: Get from token, not URL
+    console.log(`\n📈 [DAILY STATS] ===== DÉBUT =====`);
+    console.log(`   User: ${userId}, Month: ${month}`);
     if (!userId) {
+        console.log(`   ❌ REJECTION: User ID not found`);
+        console.log(`📈 [DAILY STATS] ===== FIN (ERROR) =====\n`);
         return res.status(401).json({ message: "Non autorisé" });
     }
     try {
-        console.log(`📈 Fetching daily stats for user ${userId}, month ${month}`);
+        console.log(`   🔍 Fetching daily breakdown...`);
         const [rows] = await database_1.default.query(`SELECT 
         DAY(date) AS day,
         DATE_FORMAT(date, '%Y-%m-%d') AS date,
@@ -127,11 +136,15 @@ const getDailyStats = async (req, res) => {
             expenses: Number(r.expenses) || 0,
             revenues: Number(r.revenues) || 0,
         }));
-        console.log(`✅ Daily stats retrieved: ${formattedRows.length} days`);
+        console.log(`   ✅ Retrieved: ${formattedRows.length} days`);
+        console.log(`📈 [DAILY STATS] ===== FIN (SUCCESS) =====\n`);
         res.json(formattedRows);
     }
     catch (error) {
-        console.error("❌ Erreur getDailyStats:", error);
+        console.error(`\n❌ [DAILY STATS ERROR]`);
+        console.error(`   Message: ${error.message}`);
+        console.error(`   Code: ${error.code}`);
+        console.error(`📈 [DAILY STATS] ===== FIN (ERROR) =====\n`);
         res.status(500).json({ message: "Erreur lors de la récupération des statistiques journalières" });
     }
 };
@@ -139,37 +152,53 @@ exports.getDailyStats = getDailyStats;
 // 🔹 3. Historique sur 6 mois (BarChart)
 const getHistoryStats = async (req, res) => {
     const userId = req.user?.id; // ✅ FIXED: Get from token, not URL
+    console.log(`\n📊 [HISTORY STATS] ===== DÉBUT =====`);
+    console.log(`   User: ${userId}`);
     if (!userId) {
+        console.log(`   ❌ REJECTION: User ID not found`);
+        console.log(`📊 [HISTORY STATS] ===== FIN (ERROR) =====\n`);
         return res.status(401).json({ message: "Non autorisé" });
     }
     try {
-        console.log(`📊 Fetching history stats for user ${userId} (last 6 months)`);
-        const [rows] = await database_1.default.query(`SELECT 
-         b.month,
-         IFNULL(b.amount, 0) AS budget,
-         (SELECT IFNULL(SUM(amount), 0)
-          FROM transactions
-          WHERE user_id = ? AND type = 'expense' AND DATE_FORMAT(date, '%Y-%m') = b.month) AS expenses,
-         (SELECT IFNULL(SUM(amount), 0)
-          FROM transactions
-          WHERE user_id = ? AND type = 'income' AND DATE_FORMAT(date, '%Y-%m') = b.month) AS revenues
-       FROM budgets b
-       WHERE b.user_id = ?
-       ORDER BY b.month DESC
-       LIMIT 6`, [userId, userId, userId]);
-        const formattedRows = rows
-            .reverse()
-            .map((r) => ({
-            month: r.month,
-            budget: Number(r.budget) || 0,
-            expenses: Number(r.expenses) || 0,
-            revenues: Number(r.revenues) || 0,
+        console.log(`   🔍 Fetching last 6 months of budgets...`);
+        // Get last 6 months of budgets
+        const [budgetRows] = await database_1.default.query(`SELECT CONCAT(year, '-', LPAD(month, 2, '0')) AS month, limit_amount AS budget
+       FROM budgets
+       WHERE user_id = ?
+       ORDER BY year DESC, month DESC
+       LIMIT 6`, [userId]);
+        console.log(`   ✅ Found ${budgetRows.length} budget records`);
+        // For each budget month, get corresponding transactions
+        const historyData = await Promise.all(budgetRows.map(async (budgetRow) => {
+            const monthStr = budgetRow.month; // Format: "2026-01"
+            console.log(`   📅 Processing month: ${monthStr}`);
+            // Expenses for this month
+            const [expenseData] = await database_1.default.query(`SELECT IFNULL(SUM(amount), 0) AS total
+           FROM transactions
+           WHERE user_id = ? AND type = 'expense' AND DATE_FORMAT(date, '%Y-%m') = ?`, [userId, monthStr]);
+            // Revenues for this month
+            const [revenueData] = await database_1.default.query(`SELECT IFNULL(SUM(amount), 0) AS total
+           FROM transactions
+           WHERE user_id = ? AND type = 'income' AND DATE_FORMAT(date, '%Y-%m') = ?`, [userId, monthStr]);
+            return {
+                month: monthStr,
+                budget: Number(budgetRow.budget) || 0,
+                expenses: Number(expenseData[0]?.total) || 0,
+                revenues: Number(revenueData[0]?.total) || 0,
+            };
         }));
-        console.log(`✅ History stats retrieved: ${formattedRows.length} months`);
+        // Reverse to get chronological order
+        const formattedRows = historyData.reverse();
+        console.log(`   ✅ History data prepared: ${formattedRows.length} months`);
+        console.log(`📊 [HISTORY STATS] ===== FIN (SUCCESS) =====\n`);
         res.json(formattedRows);
     }
     catch (error) {
-        console.error("❌ Erreur getHistoryStats:", error);
+        console.error(`\n❌ [HISTORY STATS ERROR]`);
+        console.error(`   Message: ${error.message}`);
+        console.error(`   Code: ${error.code}`);
+        console.error(`   SQL: ${error.sql}`);
+        console.error(`📊 [HISTORY STATS] ===== FIN (ERROR) =====\n`);
         res.status(500).json({ message: "Erreur lors de la récupération de l'historique" });
     }
 };
