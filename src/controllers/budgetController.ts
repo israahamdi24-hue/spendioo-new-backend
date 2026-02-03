@@ -66,10 +66,8 @@ export const saveBudget = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "month et amount requis" });
     }
 
-    if (!category_id) {
-      console.warn(`⚠️  [BUDGET POST] category_id manquant`);
-      return res.status(400).json({ message: "category_id est requis" });
-    }
+    // category_id est optionnel - null ou undefined signifie budget global
+    console.log(`   category_id optionnel: ${category_id || "null (budget global)"}`);
 
     // Extraire year et month du format "YYYY-MM"
     console.log(`   Tentative de parse du format "${month}"...`);
@@ -88,8 +86,8 @@ export const saveBudget = async (req: Request, res: Response) => {
 
     console.log(`🔍 Vérification budget existant...`);
     const [rows] = await db.query<RowDataPacket[]>(
-      "SELECT * FROM budgets WHERE user_id = ? AND category_id = ? AND month = ? AND year = ?",
-      [userId, category_id, monthNumInt, yearNum]
+      "SELECT * FROM budgets WHERE user_id = ? AND category_id <=> ? AND month = ? AND year = ?",
+      [userId, category_id || null, monthNumInt, yearNum]
     );
     
     console.log(`   Budgets existants trouvés: ${rows.length}`);
@@ -97,19 +95,19 @@ export const saveBudget = async (req: Request, res: Response) => {
     if (rows.length > 0) {
       console.log(`✏️  Mise à jour du budget existant...`);
       const updateResult = await db.query(
-        "UPDATE budgets SET limit_amount = ? WHERE user_id = ? AND category_id = ? AND month = ? AND year = ?",
-        [amount, userId, category_id, monthNumInt, yearNum]
+        "UPDATE budgets SET limit_amount = ? WHERE user_id = ? AND category_id <=> ? AND month = ? AND year = ?",
+        [amount, userId, category_id || null, monthNumInt, yearNum]
       );
       console.log(`✅ Budget mis à jour`);
       res.json({ message: "Budget mis à jour" });
     } else {
       console.log(`➕ Création nouveau budget...`);
       console.log(`   Query: INSERT INTO budgets (user_id, category_id, limit_amount, month, year) VALUES (?, ?, ?, ?, ?)`);
-      console.log(`   Values: [${userId}, ${category_id}, ${amount}, ${monthNumInt}, ${yearNum}]`);
+      console.log(`   Values: [${userId}, ${category_id || "NULL"}, ${amount}, ${monthNumInt}, ${yearNum}]`);
       
       const insertResult = await db.query(
         "INSERT INTO budgets (user_id, category_id, limit_amount, month, year) VALUES (?, ?, ?, ?, ?)",
-        [userId, category_id, amount, monthNumInt, yearNum]
+        [userId, category_id || null, amount, monthNumInt, yearNum]
       );
       console.log(`✅ Budget créé`, insertResult);
       res.json({ message: "Budget ajouté" });
